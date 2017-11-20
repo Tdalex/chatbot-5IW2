@@ -28,12 +28,12 @@ bot.dialog("songify", [
     function(session, args, next){
         var intentResult = args.intent;
         session.send((JSON.stringify(intentResult.entities)));
-        var entities = builder.EntityRecognizer.findEntity(intentResult.entities, 'HomeAutomation.Device');
+        
         intentResult.entities.forEach(function(element){
             session.send('Entity: '+element.entity + ' Type: '+ element.type);
             session.send();
         }, this);
     }
 ]).triggerAction({
-    matches: ["configure","None","alarm"]
+    matches: ["searchGenre","None"]
 });
