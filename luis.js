@@ -1,4 +1,4 @@
-var restify = require('restify');
+var restify           = require('restify');
 var builder           = require('botbuilder');
 var cognitiveServices = require('botbuilder-cognitiveServices');
 
@@ -20,25 +20,11 @@ server.post('/api/messages', connector.listen());
 // Receive messages from the user and respond by echoing each message back (prefixed with 'You said:')
 var bot = new builder.UniversalBot(connector);
 
-
-var recognizer = new cognitiveServices.QnAMakerRecognizer({
-    knowledgeBaseId: '55f6a7f1-4737-471b-ae10-d952b234f495',
-    subscriptionKey: '1c1a4ee6388e48d3b50b02f727cc093c'
-});
- 
-var BasicQnAMakerDialog = new cognitiveServices.QnAMakerDialog({ 
-    recognizers   : [recognizer],
-    defaultMessage: 'No good match in FAQ.',
-    qnaThreshold  : 0.5
-});
-    
-//bot.dialog('/', BasicQnAMakerDialog);
-
-var luisEndpoint   = "https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/911d4b3c-a637-4a32-8c03-0fa464e99a0f?subscription-key=70926928e31e4c0fa593b937ec0d17aa&verbose=true&timezoneOffset=0&q=";
+var luisEndpoint   = "https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/640b1c98-4745-4df6-a3d3-9a2fc4b2c1e9?subscription-key=70926928e31e4c0fa593b937ec0d17aa&verbose=true&timezoneOffset=0&q=";
 var luisRecognizer = new builder.LuisRecognizer(luisEndpoint);
 bot.recognizer(luisRecognizer);
 
-bot.dialog("HomePilot", [
+bot.dialog("songify", [
     function(session, args, next){
         var intentResult = args.intent;
         session.send((JSON.stringify(intentResult.entities)));
