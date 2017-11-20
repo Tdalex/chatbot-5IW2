@@ -25,7 +25,7 @@ var luisRecognizer = new builder.LuisRecognizer(luisEndpoint);
 
 var spotifyApplicationId    = "90bf77f8b53749faa5a3902f9827b333";
 var spotifyApplicationToken = "db2a341beff945c480f9066b6549ec9f";
-var spotifyEndpoint         = "https://api.spotify.com/v1/search?limit=5";
+var spotifyEndpoint         = "https://api.spotify.com/v1/search?limit=5&offset=0";
 var defaultType             = "track,artist";
 
 bot.recognizer(luisRecognizer);
@@ -35,12 +35,16 @@ bot.dialog("songify", [
         var intentResult = args.intent;
         session.send((JSON.stringify(intentResult.entities)));
         var query = [];
+        var type  = defaultType;
         intentResult.entities.forEach(function(element){
             session.send('Entity: '+element.entity + ' Type: '+ element.type);
-            query.push(element.type + ':'+ element.entity);
+            if(element.type != "type"){
+                query.push(element.type + ':'+ element.entity);
+            }else{
+                type = element.entity;
+            }
             session.send();
         }, this);
-        var type = defaultType;
         session.send(spotifyEndpoint + '&q=' + query.join('&') + '&type=' + type);
     }
 ]).triggerAction({
