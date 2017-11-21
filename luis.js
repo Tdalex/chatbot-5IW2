@@ -28,18 +28,29 @@ var spotifyApplicationId    = "90bf77f8b53749faa5a3902f9827b333";
 var spotifyApplicationToken = "db2a341beff945c480f9066b6549ec9f";
 var spotifyEndpoint         = "https://api.spotify.com/v1/";
 var defaultType             = "track";
+var token = "BQAEuolKFw0652GA2eMOqDYftQfjNCyeuugrqUaEIlPFbjYHWDEABfrY1C0mhLlF88GFd-ZTFIkdNdo-mS1iDLOb8AHHLj6jK4UwpUqx0AmvNnbPgUtQs2HPVIFKjJtEfLjEvw39";
 
 var spotify = new Spotify({
     id    : spotifyApplicationId,
     secret: spotifyApplicationToken
   });
+  
 
 bot.recognizer(luisRecognizer);
 
 bot.dialog("songify", [
     function(session, args, next){
         var intentResult = args.intent;
-        
+        if (intentResult.intent == "user"){
+            var options = {
+                url: spotifyEndpoint + 'me',
+                headers: {
+                'Authorization': 'Bearer ' + token
+                },
+                json: true
+            };
+            session.send(options);
+        }
         if (intentResult.intent == "search"){
             var query = [];
             var type  = defaultType;
