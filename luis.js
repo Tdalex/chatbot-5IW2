@@ -39,48 +39,43 @@ bot.recognizer(luisRecognizer);
 bot.dialog("songify", [
     function(session, args, next){
         var intentResult = args.intent;
-
-        var query = [];
-        var type  = defaultType;
-        intentResult.entities.forEach(function(element){
-            session.send('Entity: '+element.entity + ' Type: '+ element.type);
-            if(element.type != "type"){
-                query.push(element.type + ':'+ element.entity);
-            }else{
-                type = element.entity;
-            }
-        }, this);  
-        var search = spotifyEndpoint + 'search?limit=5&offset=0&q=' + query.join('&') + '&type=' + type;
-        session.send(search);
-        spotify.request(search)
-            .then(function(data) {
-                for(var element in data){
-                    session.send(element +':');
-                    if(element = "tracks"){
-                        response = data[element]['items']
-                        for(var elmt in response){
-                            session.send(response[elmt]['name'] + ': ' + response[elmt]['external_urls']['spotify']);
-                            //session.send(JSON.stringify(response[elmt]));
+        
+        if (intentResult.intent == "search"){
+            var query = [];
+            var type  = defaultType;
+            intentResult.entities.forEach(function(element){
+                session.send('Entity: '+element.entity + ' Type: '+ element.type);
+                if(element.type != "type"){
+                    query.push(element.type + ':'+ element.entity);
+                }else{
+                    type = element.entity;
+                }
+            }, this);  
+            var search = spotifyEndpoint + 'search?limit=5&offset=0&q=' + query.join('&') + '&type=' + type;
+            session.send(search);
+            spotify.request(search)
+                .then(function(data) {
+                    for(var element in data){
+                        session.send(element +':');
+                        if(element = "tracks"){
+                            response = data[element]['items']
+                            for(var elmt in response){
+                                session.send(response[elmt]['name'] + ': ' + response[elmt]['external_urls']['spotify']);
+                                //session.send(JSON.stringify(response[elmt]));
+                            }
                         }
                     }
-                }
-                //session.send(JSON.stringify(data));
-                //console.log(data); 
-            })
-            .catch(function(err) {
-                session.send('Error occurred: ' + err);
-                console.error('Error occurred: ' + err); 
-            });
+                    //session.send(JSON.stringify(data));
+                    //console.log(data); 
+                })
+                .catch(function(err) {
+                    session.send('Error occurred: ' + err);
+                    console.error('Error occurred: ' + err); 
+                });
+        }else{   
+            session.send("sorry, couldn't find what you wanted");
+        }
     }
 ]).triggerAction({
-    matches: ["search"]
-});
-
-
-bot.dialog("none", [
-    function(session, args, next){
-        session.send("sorry, couldn't find what you wanted");
-    }
-]).triggerAction({
-    matches: ["None"]
+    matches: ["search", "None"]
 });
