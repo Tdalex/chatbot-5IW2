@@ -1,6 +1,7 @@
 var restify           = require('restify');
 var builder           = require('botbuilder');
 var cognitiveServices = require('botbuilder-cognitiveServices');
+var Spotify           = require('node-spotify-api');
 
 // Setup Restify Server
 var server = restify.createServer();
@@ -25,15 +26,20 @@ var luisRecognizer = new builder.LuisRecognizer(luisEndpoint);
 
 var spotifyApplicationId    = "90bf77f8b53749faa5a3902f9827b333";
 var spotifyApplicationToken = "db2a341beff945c480f9066b6549ec9f";
-var spotifyEndpoint         = "https://api.spotify.com/v1/search?limit=5&offset=0";
-var defaultType             = "track,artist";
+var spotifyEndpoint         = "https://api.spotify.com/v1/";
+var defaultType             = "track";
+
+var spotify = new Spotify({
+    id    : spotifyApplicationId,
+    secret: spotifyApplicationToken
+  });
 
 bot.recognizer(luisRecognizer);
 
 bot.dialog("songify", [
     function(session, args, next){
         var intentResult = args.intent;
-        session.send((JSON.stringify(intentResult.entities)));
+
         var query = [];
         var type  = defaultType;
         intentResult.entities.forEach(function(element){
@@ -43,10 +49,38 @@ bot.dialog("songify", [
             }else{
                 type = element.entity;
             }
-            session.send();
-        }, this);
-        session.send(spotifyEndpoint + '&q=' + query.join('&') + '&type=' + type);
+        }, this);  
+        var search = spotifyEndpoint + 'search?limit=5&offset=0&q=' + query.join('&') + '&type=' + type;
+        session.send(search);
+        spotify.request(search)
+            .then(function(data) {
+                for(var element in data){
+                    session.send(element +':');
+                    if(element = "tracks"){
+                        response = data[element]['items']
+                        for(var elmt in response){
+                            session.send(response[elmt]['name'] + ': ' + response[elmt]['external_urls']['spotify']);
+                            //session.send(JSON.stringify(response[elmt]));
+                        }
+                    }
+                }
+                //session.send(JSON.stringify(data));
+                //console.log(data); 
+            })
+            .catch(function(err) {
+                session.send('Error occurred: ' + err);
+                console.error('Error occurred: ' + err); 
+            });
     }
 ]).triggerAction({
-    matches: ["searchGenre","None"]
+    matches: ["search"]
+});
+
+
+bot.dialog("none", [
+    function(session, args, next){
+        session.send("sorry, couldn't find what you wanted");
+    }
+]).triggerAction({
+    matches: ["None"]
 });
