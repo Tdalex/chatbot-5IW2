@@ -41,16 +41,6 @@ bot.recognizer(luisRecognizer);
 bot.dialog("songify", [
     function(session, args, next){
         var intentResult = args.intent;
-        if (intentResult.intent == "user"){
-            var options = {
-                url: spotifyEndpoint + 'me',
-                headers: {
-                'Authorization': 'Bearer ' + token
-                },
-                json: true
-            };
-            session.send(options);
-        }
         if (intentResult.intent == "search"){
             var query = [];
             var type  = defaultType;
@@ -83,7 +73,16 @@ bot.dialog("songify", [
                     session.send('Error occurred: ' + err);
                     console.error('Error occurred: ' + err); 
                 });
-        }else{   
+        }if (intentResult.intent == "user"){
+            var options = {
+                url: spotifyEndpoint + 'me',
+                headers: {
+                'Authorization': 'Bearer ' + token
+                },
+                json: true
+            };
+            session.send(JSON.stringify(options)); 
+        }else{  
             session.send("sorry, couldn't find what you wanted");
         }
     }
