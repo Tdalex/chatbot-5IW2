@@ -27,7 +27,7 @@ var luisRecognizer = new builder.LuisRecognizer(luisEndpoint);
 var spotifyApplicationId    = "90bf77f8b53749faa5a3902f9827b333";
 var spotifyApplicationToken = "db2a341beff945c480f9066b6549ec9f";
 var spotifyEndpoint         = "https://api.spotify.com/v1/";
-var defaultType             = "track";
+var defaultType             = ["track"];
 var token = "BQAEuolKFw0652GA2eMOqDYftQfjNCyeuugrqUaEIlPFbjYHWDEABfrY1C0mhLlF88GFd-ZTFIkdNdo-mS1iDLOb8AHHLj6jK4UwpUqx0AmvNnbPgUtQs2HPVIFKjJtEfLjEvw39";
 
 var spotify = new Spotify({
@@ -41,18 +41,32 @@ bot.recognizer(luisRecognizer);
 bot.dialog("songify", [
     function(session, args, next){
         var intentResult = args.intent;
+        session.send(JSON.stringify(intentResult));
         if (intentResult.intent == "search"){
-            var query = [];
-            var type  = defaultType;
+            var queryBuilder = [];
+            var type         = defaultType;
+            var query        = [];
+            var name         = [];
             intentResult.entities.forEach(function(element){
-                session.send('Entity: '+element.entity + ' Type: '+ element.type);
                 if(element.type != "type"){
-                    query.push(element.type + ':'+ element.entity);
+                    if(element.type == "builtin.encyclopedia.music.artist"){
+                        type.push("artist");
+                        name.push(element.entity);
+                    }else if(!element.type.startsWith('Music.') && !element.type.startsWith("builtin.encyclopedia.")){
+                        if(!queryBuilder[element.type]){
+                            queryBuilder[element.type] = [];
+                        }
+                        queryBuilder[element.type].push(element.entity);
+                    }
                 }else{
-                    type = element.entity;
+                    type.push(element.entity);
                 }
             }, this);  
-            var search = spotifyEndpoint + 'search?limit=5&offset=0&q=' + query.join('&') + '&type=' + type;
+            query.push(name.join(','));
+            for(var q in queryBuilder){
+                query.push(q + ':' + queryBuilder[q].join(','));
+            }
+            var search = spotifyEndpoint + 'search?limit=5&offset=0&q=' + encodeURIComponent(query.join('&')) + '&type=' + type.join(',');
             session.send(search);
             spotify.request(search)
                 .then(function(data) {
