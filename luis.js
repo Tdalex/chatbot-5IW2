@@ -41,10 +41,8 @@ var SpotifyWebApi = require('spotify-web-api-node');
 var spotifyApi = new SpotifyWebApi({
     clientId    : spotifyApplicationId,
     clientSecret: spotifyApplicationToken,
-    redirectUri : 'localhost:3978'
+    redirectUri : 'localhost:3978/callback'
 });
-
-spotifyApi.setAccessToken(token);
 
 
 
@@ -118,27 +116,22 @@ bot.dialog("songify", [
 
         // user actions
         }else if (intentResult.intent == "user"){
-           
             spotifyApi.authorizationCodeGrant(token)
-            .then(function(data) {
-                session.send(spotifyApi.getMe());
-              session.send('The token expires in ' + data.body['expires_in']);
-              session.send('The access token is ' + data.body['access_token']);
-              session.send('The refresh token is ' + data.body['refresh_token']);
-           
-              // Set the access token on the API object to use it in later calls
-              spotifyApi.setAccessToken(data.body['access_token']);
-              spotifyApi.setRefreshToken(data.body['refresh_token']);
-            }, function(err) {
-                session.send('Something went wrong!', err);
-            });
-
-            spotifyApi.getMe()
                 .then(function(data) {
-                session.send('Some information about the authenticated user', data.body);
-                }, function(err) {
-                session.send('Something went wrong!', err);
+                    session.send('Retrieved access token', data.body['access_token']);
+                    spotifyApi.setAccessToken(data.body['access_token']);
+                    return spotifyApi.getMe();
+                })
+                .then(function(data) {
+                    session.send('Retrieved data for ' + data.body['display_name']);
+                    session.send('Email is ' + data.body.email);
+                    session.send('Image URL is ' + data.body.images[0].url);
+                    session.send('This user has a ' + data.body.product + ' account');
+                })
+                .catch(function(err) {
+                    session.send('Something went wrong', err.message);
                 });
+
         // no intent found
         }else{  
             session.send("sorry, couldn't find what you wanted");
