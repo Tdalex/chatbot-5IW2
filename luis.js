@@ -29,18 +29,24 @@ var spotifyApplicationId    = "90bf77f8b53749faa5a3902f9827b333";
 var spotifyApplicationToken = "db2a341beff945c480f9066b6549ec9f";
 var spotifyEndpoint         = "https://api.spotify.com/v1/";
 var defaultType             = ["track"];
-var token                   = "BQAEuolKFw0652GA2eMOqDYftQfjNCyeuugrqUaEIlPFbjYHWDEABfrY1C0mhLlF88GFd-ZTFIkdNdo-mS1iDLOb8AHHLj6jK4UwpUqx0AmvNnbPgUtQs2HPVIFKjJtEfLjEvw39";
+var token                   = "BQAk27BwcAOYPqFZek6BtGD-jF5LsTOstNNTNqH_PFG-wMaevqngPxxgG1Jrr70n7SQistSL_kmJxi8sxh0DW6zpvcOVq1wphoQZfRqP7S-yc1o5au7GbTSGwcewkXJpCx8z6eq1";
 
 var spotify = new Spotify({
     id    : spotifyApplicationId,
     secret: spotifyApplicationToken
   });
+
+var SpotifyWebApi = require('spotify-web-api-node');  
   
 var spotifyApi = new SpotifyWebApi({
     clientId    : spotifyApplicationId,
     clientSecret: spotifyApplicationToken,
-    redirectUri : 'localhost'
+    redirectUri : 'localhost:3978'
 });
+
+spotifyApi.setAccessToken(token);
+
+
 
 bot.recognizer(luisRecognizer);
 
@@ -113,33 +119,26 @@ bot.dialog("songify", [
         // user actions
         }else if (intentResult.intent == "user"){
            
-            // First retrieve an access token
             spotifyApi.authorizationCodeGrant(token)
             .then(function(data) {
-            console.log('Retrieved access token', data.body['access_token']);
-
-            // Set the access token
-            spotifyApi.setAccessToken(data.body['access_token']);
-
-            // Use the access token to retrieve information about the user connected to it
-            return spotifyApi.getMe();
-            })
-            .then(function(data) {
-            // "Retrieved data for Faruk Sahin"
-            console.log('Retrieved data for ' + data.body['display_name']);
-
-            // "Email is farukemresahin@gmail.com"
-            console.log('Email is ' + data.body.email);
-
-            // "Image URL is http://media.giphy.com/media/Aab07O5PYOmQ/giphy.gif"
-            console.log('Image URL is ' + data.body.images[0].url);
-
-            // "This user has a premium account"
-            console.log('This user has a ' + data.body.product + ' account');
-            })
-            .catch(function(err) {
-            console.log('Something went wrong', err.message);
+                session.send(spotifyApi.getMe());
+              session.send('The token expires in ' + data.body['expires_in']);
+              session.send('The access token is ' + data.body['access_token']);
+              session.send('The refresh token is ' + data.body['refresh_token']);
+           
+              // Set the access token on the API object to use it in later calls
+              spotifyApi.setAccessToken(data.body['access_token']);
+              spotifyApi.setRefreshToken(data.body['refresh_token']);
+            }, function(err) {
+                session.send('Something went wrong!', err);
             });
+
+            spotifyApi.getMe()
+                .then(function(data) {
+                session.send('Some information about the authenticated user', data.body);
+                }, function(err) {
+                session.send('Something went wrong!', err);
+                });
         // no intent found
         }else{  
             session.send("sorry, couldn't find what you wanted");
