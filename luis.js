@@ -28,7 +28,7 @@ var spotifyApplicationId    = "90bf77f8b53749faa5a3902f9827b333";
 var spotifyApplicationToken = "db2a341beff945c480f9066b6549ec9f";
 var spotifyEndpoint         = "https://api.spotify.com/v1/";
 var defaultType             = ["track"];
-var token = "BQAEuolKFw0652GA2eMOqDYftQfjNCyeuugrqUaEIlPFbjYHWDEABfrY1C0mhLlF88GFd-ZTFIkdNdo-mS1iDLOb8AHHLj6jK4UwpUqx0AmvNnbPgUtQs2HPVIFKjJtEfLjEvw39";
+var token                   = "BQAEuolKFw0652GA2eMOqDYftQfjNCyeuugrqUaEIlPFbjYHWDEABfrY1C0mhLlF88GFd-ZTFIkdNdo-mS1iDLOb8AHHLj6jK4UwpUqx0AmvNnbPgUtQs2HPVIFKjJtEfLjEvw39";
 
 var spotify = new Spotify({
     id    : spotifyApplicationId,
@@ -44,13 +44,16 @@ bot.dialog("songify", [
         session.send(JSON.stringify(intentResult));
         if (intentResult.intent == "search"){
             var queryBuilder = [];
-            var type         = defaultType;
+            var type         = [];
             var query        = [];
             var name         = [];
             intentResult.entities.forEach(function(element){
                 if(element.type != "type"){
                     if(element.type == "builtin.encyclopedia.music.artist"){
                         type.push("artist");
+                        name.push(element.entity);
+                    }else if(element.type == "builtin.encyclopedia.film.film"){
+                        type.push("track");
                         name.push(element.entity);
                     }else if(!element.type.startsWith('Music.') && !element.type.startsWith("builtin.encyclopedia.")){
                         if(!queryBuilder[element.type]){
@@ -62,44 +65,61 @@ bot.dialog("songify", [
                     type.push(element.entity);
                 }
             }, this);  
-            query.push(name.join(','));
+            // join title and artist name to query
+            if (name.length != 0) {
+                query.push(name.join(','));
+            }
+            // assemble query
             for(var q in queryBuilder){
                 query.push(q + ':' + queryBuilder[q].join(','));
+            } 
+            // if not specific search use default type  
+            if (type.length == 0) {
+                type = defaultType;
             }
-            var search = spotifyEndpoint + 'search?limit=5&offset=0&q=' + encodeURIComponent(query.join('&')) + '&type=' + type.join(',');
-            session.send(search);
-            spotify.request(search)
-                .then(function(data) {
-                    for(var element in data){
-                        session.send(element +':');
-                        if(element = "tracks"){
-                            response = data[element]['items']
-                            for(var elmt in response){
-                                session.send(response[elmt]['name'] + ': ' + response[elmt]['external_urls']['spotify']);
-                                //session.send(JSON.stringify(response[elmt]));
+            
+            // send error or search if query not null
+            if (query.length == 0) {
+                session.send("sorry, couldn't find what your were talking about");
+            }else{
+                var search = spotifyEndpoint + 'search?limit=5&offset=0&q=' + encodeURIComponent(query.join('&')) + '&type=' + type.join(',');
+                session.send(search);
+                spotify.request(search)
+                    .then(function(data) {
+                        for(var element in data){
+                            session.send(element +':');
+                            if(element = "tracks"){
+                                response = data[element]['items']
+                                for(var elmt in response){
+                                    session.send(response[elmt]['name'] + ': ' + response[elmt]['external_urls']['spotify']);
+                                    //session.send(JSON.stringify(response[elmt]));
+                                }
                             }
                         }
-                    }
-                    //session.send(JSON.stringify(data));
-                    //console.log(data); 
-                })
-                .catch(function(err) {
-                    session.send('Error occurred: ' + err);
-                    console.error('Error occurred: ' + err); 
-                });
-        }if (intentResult.intent == "user"){
+                        //session.send(JSON.stringify(data));
+                        //console.log(data); 
+                    })
+                    .catch(function(err) {
+                        session.send('Error occurred: ' + err);
+                        console.error('Error occurred: ' + err); 
+                    });
+            }
+
+        // user actions
+        }else if (intentResult.intent == "user"){
             var options = {
-                url: spotifyEndpoint + 'me',
+                url    : spotifyEndpoint + 'me',
                 headers: {
                 'Authorization': 'Bearer ' + token
                 },
                 json: true
             };
             session.send(JSON.stringify(options)); 
+        // no intent found
         }else{  
             session.send("sorry, couldn't find what you wanted");
         }
     }
 ]).triggerAction({
-    matches: ["search", "None"]
+    matches: ["search", 'user', "None"]
 });
