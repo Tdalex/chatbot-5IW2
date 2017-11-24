@@ -2,6 +2,7 @@ var restify           = require('restify');
 var builder           = require('botbuilder');
 var cognitiveServices = require('botbuilder-cognitiveServices');
 var Spotify           = require('node-spotify-api');
+var SpotifyWebApi     = require('spotify-web-api-node');
 
 // Setup Restify Server
 var server = restify.createServer();
@@ -35,18 +36,27 @@ var spotify = new Spotify({
     secret: spotifyApplicationToken
   });
   
+var spotifyApi = new SpotifyWebApi({
+    clientId    : spotifyApplicationId,
+    clientSecret: spotifyApplicationToken,
+    redirectUri : 'localhost'
+});
 
 bot.recognizer(luisRecognizer);
 
 bot.dialog("songify", [
     function(session, args, next){
         var intentResult = args.intent;
+        
         session.send(JSON.stringify(intentResult));
+
+        // search action
         if (intentResult.intent == "search"){
             var queryBuilder = [];
             var type         = [];
             var query        = [];
             var name         = [];
+            // entities
             intentResult.entities.forEach(function(element){
                 if(element.type != "type"){
                     if(element.type == "builtin.encyclopedia.music.artist"){
@@ -88,16 +98,11 @@ bot.dialog("songify", [
                     .then(function(data) {
                         for(var element in data){
                             session.send(element +':');
-                            if(element = "tracks"){
-                                response = data[element]['items']
-                                for(var elmt in response){
-                                    session.send(response[elmt]['name'] + ': ' + response[elmt]['external_urls']['spotify']);
-                                    //session.send(JSON.stringify(response[elmt]));
-                                }
+                            response = data[element]['items']
+                            for(var elmt in response){
+                                session.send(response[elmt]['name'] + ': ' + response[elmt]['external_urls']['spotify']);
                             }
                         }
-                        //session.send(JSON.stringify(data));
-                        //console.log(data); 
                     })
                     .catch(function(err) {
                         session.send('Error occurred: ' + err);
@@ -107,14 +112,34 @@ bot.dialog("songify", [
 
         // user actions
         }else if (intentResult.intent == "user"){
-            var options = {
-                url    : spotifyEndpoint + 'me',
-                headers: {
-                'Authorization': 'Bearer ' + token
-                },
-                json: true
-            };
-            session.send(JSON.stringify(options)); 
+           
+            // First retrieve an access token
+            spotifyApi.authorizationCodeGrant(token)
+            .then(function(data) {
+            console.log('Retrieved access token', data.body['access_token']);
+
+            // Set the access token
+            spotifyApi.setAccessToken(data.body['access_token']);
+
+            // Use the access token to retrieve information about the user connected to it
+            return spotifyApi.getMe();
+            })
+            .then(function(data) {
+            // "Retrieved data for Faruk Sahin"
+            console.log('Retrieved data for ' + data.body['display_name']);
+
+            // "Email is farukemresahin@gmail.com"
+            console.log('Email is ' + data.body.email);
+
+            // "Image URL is http://media.giphy.com/media/Aab07O5PYOmQ/giphy.gif"
+            console.log('Image URL is ' + data.body.images[0].url);
+
+            // "This user has a premium account"
+            console.log('This user has a ' + data.body.product + ' account');
+            })
+            .catch(function(err) {
+            console.log('Something went wrong', err.message);
+            });
         // no intent found
         }else{  
             session.send("sorry, couldn't find what you wanted");

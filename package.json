@@ -12,6 +12,7 @@
     "botbuilder": "^3.9.1",
     "botbuilder-cognitiveservices": "^1.1.0",
     "node-spotify-api": "^1.0.7",
-    "restify": "^5.2.1"
+    "restify": "^5.2.1",
+    "spotify-web-api-node": "^2.5.0"
   }
 }
