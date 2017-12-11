@@ -29,22 +29,21 @@ var spotifyApplicationId    = "90bf77f8b53749faa5a3902f9827b333";
 var spotifyApplicationToken = "db2a341beff945c480f9066b6549ec9f";
 var spotifyEndpoint         = "https://api.spotify.com/v1/";
 var defaultType             = ["track"];
-var token                   = "BQAk27BwcAOYPqFZek6BtGD-jF5LsTOstNNTNqH_PFG-wMaevqngPxxgG1Jrr70n7SQistSL_kmJxi8sxh0DW6zpvcOVq1wphoQZfRqP7S-yc1o5au7GbTSGwcewkXJpCx8z6eq1";
+var token                   = "BQASfCgi7py-GPrzgjEdsss4tFsKPr70dCHSdC7iM-1SfRcwdd9J724ohUj5ZT-FJOcT14JeH-c745FpQS6J5COUv02_RwB3OU75WxTNHtJiK12L--qwEpfRwpKQLZpZIJ-GDUKPiwaMS-AmLX16yKXBmoTWz4WC87g9-Uh-KZk88BMa7Tpy01CCzeelU4lib4sm4BgS9S6wImFch0t2JjBhNjra0Reb";
 
 var spotify = new Spotify({
     id    : spotifyApplicationId,
     secret: spotifyApplicationToken
   });
 
-var SpotifyWebApi = require('spotify-web-api-node');  
-  
-var spotifyApi = new SpotifyWebApi({
-    clientId    : spotifyApplicationId,
-    clientSecret: spotifyApplicationToken,
-    redirectUri : 'localhost:3978/callback'
-});
+var request = require('request');
 
-
+//Option pour le request
+var options = {
+  url: "",
+  headers: {'Authorization': 'Bearer ' + token},
+  json : true
+};
 
 bot.recognizer(luisRecognizer);
 
@@ -53,6 +52,14 @@ bot.dialog("songify", [
         var intentResult = args.intent;
         
         session.send(JSON.stringify(intentResult));
+
+        //ajouter verif pour separer l'intent et utiliser le meme callback
+        function callback(error, response, body) {
+            if (!error && response.statusCode == 200) {
+                var info = JSON.stringify(body);
+                session.send(info);
+            }
+        }
 
         // search action
         if (intentResult.intent == "search"){
@@ -96,7 +103,7 @@ bot.dialog("songify", [
             if (query.length == 0) {
                 session.send("sorry, couldn't find what your were talking about");
             }else{
-                var search = spotifyEndpoint + 'search?limit=5&offset=0&q=' + encodeURIComponent(query.join('&')) + '&type=' + type.join(',');
+                var search = spotifyEndpoint + '    offset=0&q=' + encodeURIComponent(query.join('&')) + '&type=' + type.join(',');
                 session.send(search);
                 spotify.request(search)
                     .then(function(data) {
@@ -116,21 +123,24 @@ bot.dialog("songify", [
 
         // user actions
         }else if (intentResult.intent == "user"){
-            spotifyApi.authorizationCodeGrant(token)
-                .then(function(data) {
-                    session.send('Retrieved access token', data.body['access_token']);
-                    spotifyApi.setAccessToken(data.body['access_token']);
-                    return spotifyApi.getMe();
-                })
-                .then(function(data) {
-                    session.send('Retrieved data for ' + data.body['display_name']);
-                    session.send('Email is ' + data.body.email);
-                    session.send('Image URL is ' + data.body.images[0].url);
-                    session.send('This user has a ' + data.body.product + ' account');
-                })
-                .catch(function(err) {
-                    session.send('Something went wrong', err.message);
-                });
+            // spotifyApi.authorizationCodeGrant(token)
+            //     .then(function(data) {
+            //         session.send('Retrieved access token', data.body['access_token']);
+            //         spotifyApi.setAccessToken(data.body['access_token']);
+            //         spotifyApi.setRefreshToken(data.body['refresh_token']);
+            //         // return spotifyApi.getMe().then(function(data) {
+            //         //     session.send('Retrieved data for ' + data.body['display_name']);
+            //         //     session.send('Email is ' + data.body.email);
+            //         //     session.send('Image URL is ' + data.body.images[0].url);
+            //         //     session.send('This user has a ' + data.body.product + ' account');
+            //         // });
+            //     })
+            //     .catch(function(err) {
+            //         session.send('Something went wrong', err.message);
+            //     });
+            options.url = spotifyEndpoint + "me" ;
+            request(options, callback); //Ajouter un parametre pour l'intent
+            
 
         // no intent found
         }else{  
