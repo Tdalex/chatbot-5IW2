@@ -30,13 +30,15 @@ var   spotifyApplicationId    = "90bf77f8b53749faa5a3902f9827b333";
 var   spotifyApplicationToken = "db2a341beff945c480f9066b6549ec9f";
 var   spotifyEndpoint         = "https://api.spotify.com/v1/";
 var   defaultType             = ["track"];
-var   token                   = "BQASfCgi7py-GPrzgjEdsss4tFsKPr70dCHSdC7iM-1SfRcwdd9J724ohUj5ZT-FJOcT14JeH-c745FpQS6J5COUv02_RwB3OU75WxTNHtJiK12L--qwEpfRwpKQLZpZIJ-GDUKPiwaMS-AmLX16yKXBmoTWz4WC87g9-Uh-KZk88BMa7Tpy01CCzeelU4lib4sm4BgS9S6wImFch0t2JjBhNjra0Reb";
+var   token                   = "";
 var   choices                 = {};
 var   yesno                   = {};
 yesno['oui']                  = true;
 yesno['non']                  = false;
+var   authUrl                 = "http://localhost/spotify_login2/";
+var   connected               = false;
 
-var spotify                 = new Spotify({
+var   spotify                 = new Spotify({
     id    : spotifyApplicationId,
     secret: spotifyApplicationToken
   });
@@ -45,7 +47,7 @@ var spotify                 = new Spotify({
 //Option pour le request
 var options = {
   url    : "",
-  headers: {'Authorization': 'Bearer ' + token},
+  headers: {'Authorization': ''},
   json   : true
 };
 
@@ -67,9 +69,16 @@ bot.dialog("songify", [
         }
         //ajouter verif pour separer l'intent et utiliser le meme callback
         function callback(error, response, body) {
+            session.send(JSON.stringify(response));
             if (!error && response.statusCode == 200) {
                 var info = JSON.stringify(body);
                 session.send(info);
+            }else if( response.statusCode == 401) {
+                session.send('votre token a expiré')
+            }else{
+                if(debug){
+                    session.send(JSON.stringify(response));
+                }
             }
         }
 
@@ -140,8 +149,13 @@ bot.dialog("songify", [
 
         // user actions
         }else if (intentResult.intent == "user"){
-            options.url = spotifyEndpoint + "me" ;
-            request(options, callback); //Ajouter un parametre pour l'intent
+            if (!connected){
+                session.beginDialog('connect'); 
+                return true;   
+            }
+            // options.url = spotifyEndpoint + "me" ;
+            
+            // request(options, callback); //Ajouter un parametre pour l'intent
             
 
         // no intent found
@@ -175,5 +189,20 @@ bot.dialog('debug', [
         }else{
             session.send("debug desactivé");
         }
+    }
+]);
+
+bot.dialog('connect', [
+    function(session, args, next){        
+        builder.Prompts.text(session, "Veuillez vous rendre sur l'addresse suivante afin de nous communiqué votre token d'authentification: " + authUrl);
+    },
+    function (session, results){
+        token                         = results.response;
+        options.headers.Authorization = "Bearer " + token;
+        connected                     = true;
+        options.url                   = spotifyEndpoint + "me" ;
+        
+        request(options, callback); //Ajouter un parametre pour l'intent
+        session.send('Vous êtes maintenant connecté, vous pouvez continuer.')
     }
 ]);
