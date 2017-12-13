@@ -30,8 +30,9 @@ var spotifyApplicationToken = "db2a341beff945c480f9066b6549ec9f";
 var spotifyEndpoint         = "https://api.spotify.com/v1/";
 var defaultType             = ["track"];
 var token                   = "BQASfCgi7py-GPrzgjEdsss4tFsKPr70dCHSdC7iM-1SfRcwdd9J724ohUj5ZT-FJOcT14JeH-c745FpQS6J5COUv02_RwB3OU75WxTNHtJiK12L--qwEpfRwpKQLZpZIJ-GDUKPiwaMS-AmLX16yKXBmoTWz4WC87g9-Uh-KZk88BMa7Tpy01CCzeelU4lib4sm4BgS9S6wImFch0t2JjBhNjra0Reb";
+var choices                 = {};
 
-var spotify = new Spotify({
+var spotify                 = new Spotify({
     id    : spotifyApplicationId,
     secret: spotifyApplicationToken
   });
@@ -40,9 +41,9 @@ var request = require('request');
 
 //Option pour le request
 var options = {
-  url: "",
+  url    : "",
   headers: {'Authorization': 'Bearer ' + token},
-  json : true
+  json   : true
 };
 
 bot.recognizer(luisRecognizer);
@@ -103,18 +104,18 @@ bot.dialog("songify", [
             if (query.length == 0) {
                 session.send("sorry, couldn't find what your were talking about");
             }else{
-                var search = spotifyEndpoint + '    offset=0&q=' + encodeURIComponent(query.join('&')) + '&type=' + type.join(',');
+                var search = spotifyEndpoint + 'search?limit=5&offset=0&q=' + encodeURIComponent(query.join('&')) + '&type=' + type.join(',');
                 session.send(search);
                 spotify.request(search)
                     .then(function(data) {
                         for(var element in data){
-                            session.send(element +':');
-                            response = data[element]['items']
-                            for(var elmt in response){
-                                session.send(response[elmt]['name']);
-                                session.send(response[elmt]['external_urls']['spotify']);
-                                session.send("-----");
+                            choices = {};
+                            
+                            for(var elmt in data[element]['items']){
+                                choices[data[element]['items'][elmt]['name']] = { "url": data[element]['items'][elmt]['external_urls']['spotify'] };
                             }
+
+                            session.beginDialog('askMusic');         
                         }
                     })
                     .catch(function(err) {
@@ -125,21 +126,6 @@ bot.dialog("songify", [
 
         // user actions
         }else if (intentResult.intent == "user"){
-            // spotifyApi.authorizationCodeGrant(token)
-            //     .then(function(data) {
-            //         session.send('Retrieved access token', data.body['access_token']);
-            //         spotifyApi.setAccessToken(data.body['access_token']);
-            //         spotifyApi.setRefreshToken(data.body['refresh_token']);
-            //         // return spotifyApi.getMe().then(function(data) {
-            //         //     session.send('Retrieved data for ' + data.body['display_name']);
-            //         //     session.send('Email is ' + data.body.email);
-            //         //     session.send('Image URL is ' + data.body.images[0].url);
-            //         //     session.send('This user has a ' + data.body.product + ' account');
-            //         // });
-            //     })
-            //     .catch(function(err) {
-            //         session.send('Something went wrong', err.message);
-            //     });
             options.url = spotifyEndpoint + "me" ;
             request(options, callback); //Ajouter un parametre pour l'intent
             
@@ -152,3 +138,13 @@ bot.dialog("songify", [
 ]).triggerAction({
     matches: ["search", 'user', "None"]
 });
+
+bot.dialog('askMusic', [
+    function (session) {
+        builder.Prompts.choice(session, "Quel musique voulez vous écouter?", choices, { listStyle: builder.ListStyle.button});
+    },
+    function (session, results){
+        var choice = choices[results.response.entity];
+        session.send('%s', choice.url);
+    }
+]);
