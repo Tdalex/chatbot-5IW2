@@ -2,7 +2,8 @@ var restify           = require('restify');
 var builder           = require('botbuilder');
 var cognitiveServices = require('botbuilder-cognitiveServices');
 var Spotify           = require('node-spotify-api');
-var SpotifyWebApi     = require('spotify-web-api-node');
+var request           = require('request');
+var debug             = false;
 
 // Setup Restify Server
 var server = restify.createServer();
@@ -25,19 +26,21 @@ var bot = new builder.UniversalBot(connector);
 var luisEndpoint   = "https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/640b1c98-4745-4df6-a3d3-9a2fc4b2c1e9?subscription-key=70926928e31e4c0fa593b937ec0d17aa&verbose=true&timezoneOffset=0&q=";
 var luisRecognizer = new builder.LuisRecognizer(luisEndpoint);
 
-var spotifyApplicationId    = "90bf77f8b53749faa5a3902f9827b333";
-var spotifyApplicationToken = "db2a341beff945c480f9066b6549ec9f";
-var spotifyEndpoint         = "https://api.spotify.com/v1/";
-var defaultType             = ["track"];
-var token                   = "BQASfCgi7py-GPrzgjEdsss4tFsKPr70dCHSdC7iM-1SfRcwdd9J724ohUj5ZT-FJOcT14JeH-c745FpQS6J5COUv02_RwB3OU75WxTNHtJiK12L--qwEpfRwpKQLZpZIJ-GDUKPiwaMS-AmLX16yKXBmoTWz4WC87g9-Uh-KZk88BMa7Tpy01CCzeelU4lib4sm4BgS9S6wImFch0t2JjBhNjra0Reb";
-var choices                 = {};
+var   spotifyApplicationId    = "90bf77f8b53749faa5a3902f9827b333";
+var   spotifyApplicationToken = "db2a341beff945c480f9066b6549ec9f";
+var   spotifyEndpoint         = "https://api.spotify.com/v1/";
+var   defaultType             = ["track"];
+var   token                   = "BQASfCgi7py-GPrzgjEdsss4tFsKPr70dCHSdC7iM-1SfRcwdd9J724ohUj5ZT-FJOcT14JeH-c745FpQS6J5COUv02_RwB3OU75WxTNHtJiK12L--qwEpfRwpKQLZpZIJ-GDUKPiwaMS-AmLX16yKXBmoTWz4WC87g9-Uh-KZk88BMa7Tpy01CCzeelU4lib4sm4BgS9S6wImFch0t2JjBhNjra0Reb";
+var   choices                 = {};
+var   yesno                   = {};
+yesno['oui']                  = true;
+yesno['non']                  = false;
 
 var spotify                 = new Spotify({
     id    : spotifyApplicationId,
     secret: spotifyApplicationToken
   });
 
-var request = require('request');
 
 //Option pour le request
 var options = {
@@ -46,14 +49,22 @@ var options = {
   json   : true
 };
 
+
+
 bot.recognizer(luisRecognizer);
 
 bot.dialog("songify", [
     function(session, args, next){
+        if(session.message.text.toLowerCase() == 'debug'){
+            session.beginDialog('debug');    
+            return true;          
+        }
+        
         var intentResult = args.intent;
         
-        session.send(JSON.stringify(intentResult));
-
+        if(debug){
+            session.send(JSON.stringify(intentResult));
+        }
         //ajouter verif pour separer l'intent et utiliser le meme callback
         function callback(error, response, body) {
             if (!error && response.statusCode == 200) {
@@ -105,7 +116,10 @@ bot.dialog("songify", [
                 session.send("sorry, couldn't find what your were talking about");
             }else{
                 var search = spotifyEndpoint + 'search?limit=5&offset=0&q=' + encodeURIComponent(query.join('&')) + '&type=' + type.join(',');
-                session.send(search);
+               
+                if(debug){    
+                    session.send(search);
+                }
                 spotify.request(search)
                     .then(function(data) {
                         for(var element in data){
@@ -136,7 +150,7 @@ bot.dialog("songify", [
         }
     }
 ]).triggerAction({
-    matches: ["search", 'user', "None"]
+    matches: ["search", 'user', "None", "debug"]
 });
 
 bot.dialog('askMusic', [
@@ -146,5 +160,20 @@ bot.dialog('askMusic', [
     function (session, results){
         var choice = choices[results.response.entity];
         session.send('%s', choice.url);
+    }
+]);
+
+bot.dialog('debug', [
+    function(session, args, next){        
+        builder.Prompts.choice(session, "activer le mode debug?", yesno, { listStyle: builder.ListStyle.button});
+    },
+    function (session, results){
+        debug = yesno[results.response.entity];
+        
+        if(debug){
+            session.send("debug activé");
+        }else{
+            session.send("debug desactivé");
+        }
     }
 ]);
