@@ -111,7 +111,9 @@ bot.dialog("songify", [
                             session.send(element +':');
                             response = data[element]['items']
                             for(var elmt in response){
-                                session.send(response[elmt]['name'] + ': ' + response[elmt]['external_urls']['spotify']);
+                                session.send(response[elmt]['name']);
+                                session.send(response[elmt]['external_urls']['spotify']);
+                                session.send("-----");
                             }
                         }
                     })
