@@ -85,6 +85,7 @@ bot.dialog("songify", [
             session.send(JSON.stringify(intentResult));
         }  
 
+        //promptType == 'connect' quand l'intent est user
         if(promptType == 'connect'){            
             token                         = session.message.text;
             options.headers.Authorization = "Bearer " + token;
@@ -171,6 +172,8 @@ bot.dialog("songify", [
             }            
 
         // no intent found
+        }else if(intentResult.intent == "getPlaylist"){
+            session.send("khnn");
         }else{  
             session.send("Une erreur est survenue, veuillez recommencer.");
         }

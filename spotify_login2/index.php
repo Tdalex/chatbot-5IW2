@@ -30,9 +30,8 @@ if (isset($_GET['code'])) {
 <!DOCTYPE html>
 
 <body>
-    <div class="container">
-        <?php print_r($_GET['code']); ?>
-    </div>
-    <!--<script src="js/main.js"></script>-->
+<div class="container">
+    <?php print_r($session->getAccessToken()); ?>
+</div>
+<!--<script src="js/main.js"></script>-->
 </body>
-</html>
