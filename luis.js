@@ -5,7 +5,7 @@ var Spotify           = require('node-spotify-api');
 var request           = require('request');
 var debug             = false;
 var promptType        = "";
-var intentResult      = "";
+var intentResult      = ""; 
 
 // Setup Restify Server
 var server = restify.createServer();
@@ -60,15 +60,15 @@ bot.recognizer(luisRecognizer);
 bot.dialog("songify", [
     function(session, args, next){       
         
-        intentResult = args.intent;
-        
+        intentResult = args.intent; 
+
         //ajouter verif pour separer l'intent et utiliser le meme callback
         function callback(error, response, body) {
             if (!error && response.statusCode == 200) {                
                 session.send('Bonjour, '+ body.display_name +', vous êtes maintenant connecté, vous pouvez continuer.');
                 connected = true;
             }else if( response.statusCode == 401) {
-                session.send('votre token a expiré ou est invalide')
+                session.send('votre token a expiré ou est invalide');
                 connected = false;
             }else{
                 if(debug){
@@ -82,6 +82,7 @@ bot.dialog("songify", [
             session.beginDialog('debug');    
             return true;          
         }
+        
         
         if(debug){
             session.send(JSON.stringify(intentResult));
@@ -99,13 +100,8 @@ bot.dialog("songify", [
             return true;
         }
 
-        if (intentResult.intent == "disconnect"){
-            connected                     = false;
-            options.headers.Authorization = "";
-            token                         = "";
-            session.send("Vous venez de vous déconnecter");
         // search action
-        }else if (intentResult.intent == "search"){
+        if (intentResult.intent == "search"){
             var queryBuilder = [];
             var type         = [];
             var query        = [];
@@ -180,13 +176,18 @@ bot.dialog("songify", [
 
         // no intent found
         }else if(intentResult.intent == "getPlaylist"){
-            session.send("khnn");
+            token                         = session.message.text;
+            options.headers.Authorization = "Bearer " + token;
+            options.url                   = spotifyEndpoint + "me/playlists" ;
+
+            request(options, callback);
+
         }else{  
             session.send("Une erreur est survenue, veuillez recommencer.");
         }
     }
 ]).triggerAction({
-    matches: ["search", 'user', "None", "debug", "disconnect"]
+    matches: ["search", 'user', "None", "debug", "disconnect", "getPlaylist"]
 });
 
 bot.dialog('askMusic', [
