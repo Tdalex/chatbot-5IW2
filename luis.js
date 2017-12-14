@@ -4,6 +4,7 @@ var cognitiveServices = require('botbuilder-cognitiveServices');
 var Spotify           = require('node-spotify-api');
 var request           = require('request');
 var debug             = false;
+var promptType        = "";
 
 // Setup Restify Server
 var server = restify.createServer();
@@ -56,7 +57,23 @@ var options = {
 bot.recognizer(luisRecognizer);
 
 bot.dialog("songify", [
-    function(session, args, next){
+    function(session, args, next){       
+        
+        //ajouter verif pour separer l'intent et utiliser le meme callback
+        function callback(error, response, body) {
+            if (!error && response.statusCode == 200) {                
+                session.send('Bonjour, '+ body.display_name +', vous êtes maintenant connecté, vous pouvez continuer.');
+                connected = true;
+            }else if( response.statusCode == 401) {
+                session.send('votre token a expiré')
+            }else{
+                if(debug){
+                    session.send(JSON.stringify(response));
+                }
+            }
+            
+        }      
+        
         if(session.message.text.toLowerCase() == 'debug'){
             session.beginDialog('debug');    
             return true;          
@@ -66,20 +83,17 @@ bot.dialog("songify", [
         
         if(debug){
             session.send(JSON.stringify(intentResult));
-        }
-        //ajouter verif pour separer l'intent et utiliser le meme callback
-        function callback(error, response, body) {
-            session.send(JSON.stringify(response));
-            if (!error && response.statusCode == 200) {
-                var info = JSON.stringify(body);
-                session.send(info);
-            }else if( response.statusCode == 401) {
-                session.send('votre token a expiré')
-            }else{
-                if(debug){
-                    session.send(JSON.stringify(response));
-                }
-            }
+        }  
+
+        if(promptType == 'connect'){            
+            token                         = session.message.text;
+            options.headers.Authorization = "Bearer " + token;
+            options.url                   = spotifyEndpoint + "me" ;
+            
+            session.send('Vérification du token ...');
+            request(options, callback); //Ajouter un parametre pour l'intent
+            promptType = "";
+            return true;
         }
 
         // search action
@@ -122,7 +136,7 @@ bot.dialog("songify", [
             
             // send error or search if query not null
             if (query.length == 0) {
-                session.send("sorry, couldn't find what your were talking about");
+                session.send("Une erreur est survenue, veuillez recommencer.");
             }else{
                 var search = spotifyEndpoint + 'search?limit=5&offset=0&q=' + encodeURIComponent(query.join('&')) + '&type=' + type.join(',');
                
@@ -150,17 +164,15 @@ bot.dialog("songify", [
         // user actions
         }else if (intentResult.intent == "user"){
             if (!connected){
-                session.beginDialog('connect'); 
+                // session.beginDialog('connect'); 
+                promptType = "connect";
+                session.send("Veuillez vous rendre sur l'addresse suivante afin de nous communiqué votre token d'authentification: " + authUrl);
                 return true;   
-            }
-            // options.url = spotifyEndpoint + "me" ;
-            
-            // request(options, callback); //Ajouter un parametre pour l'intent
-            
+            }            
 
         // no intent found
         }else{  
-            session.send("sorry, couldn't find what you wanted");
+            session.send("Une erreur est survenue, veuillez recommencer.");
         }
     }
 ]).triggerAction({
@@ -193,7 +205,7 @@ bot.dialog('debug', [
 ]);
 
 bot.dialog('connect', [
-    function(session, args, next){        
+    function(session, args, next){   
         builder.Prompts.text(session, "Veuillez vous rendre sur l'addresse suivante afin de nous communiqué votre token d'authentification: " + authUrl);
     },
     function (session, results){
@@ -203,6 +215,5 @@ bot.dialog('connect', [
         options.url                   = spotifyEndpoint + "me" ;
         
         request(options, callback); //Ajouter un parametre pour l'intent
-        session.send('Vous êtes maintenant connecté, vous pouvez continuer.')
     }
 ]);
