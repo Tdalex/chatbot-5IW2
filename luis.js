@@ -34,6 +34,7 @@ var   spotifyEndpoint         = "https://api.spotify.com/v1/";
 var   defaultType             = ["track"];
 var   token                   = "";
 var   choices                 = {};
+var   playlists               = {};
 var   yesno                   = {};
 yesno['oui']                  = true;
 yesno['non']                  = false;
@@ -50,7 +51,8 @@ var   spotify                 = new Spotify({
 var options = {
   url    : "",
   headers: {'Authorization': ''},
-  json   : true
+  json   : true,
+  methode : "GET"
 };
 
 
@@ -63,18 +65,25 @@ bot.dialog("songify", [
         intentResult = args.intent;
         
         function callback(error, response, body) {
-            if (!error && response.statusCode == 200) {                
-                session.send('Bonjour, '+ body.display_name +', vous êtes maintenant connecté, vous pouvez continuer.');
-                connected = true;
+            if (!error && response.statusCode == 200) {  
+                if (intentResult == "user"){              
+                    session.send('Bonjour, '+ body.display_name +', vous êtes maintenant connecté, vous pouvez continuer.');
+                    connected = true;
+                }else if (intentResult == "getPlaylist"){
+                    playlists = {};
+                    for(var elmt in body[element]['items']){
+                        playlists[body[element]['items'][elmt]['name']] = { "url": body[element]['items'][elmt]['external_urls']['spotify'] };
+                        playlists[body[element]['items'][elmt]['name']] = { "owner": body[element]['items'][elmt]['owner']['display_name'] };
+                    }
+                }
             }else if( response.statusCode == 401) {
                 session.send('votre token a expiré ou est invalide');
                 connected = false;
             }else{
                 if(debug){
                     session.send(JSON.stringify(response));
-                }
+                }            
             }
-            
         }      
         
         if(session.message.text.toLowerCase() == 'debug'){
@@ -175,11 +184,9 @@ bot.dialog("songify", [
 
         // no intent found
         }else if(intentResult.intent == "getPlaylist"){
-            token                         = session.message.text;
-            options.headers.Authorization = "Bearer " + token;
-            options.url                   = spotifyEndpoint + "me/playlists" ;
-
+            options.url = spotifyEndpoint + "me/playlists" ;
             request(options, callback);
+            session.beginDialog('getPlaylist');
 
         }else{  
             session.send("Une erreur est survenue, veuillez recommencer.");
@@ -225,5 +232,16 @@ bot.dialog('connect', [
         options.url                   = spotifyEndpoint + "me" ;
         
         request(options, callback); //Ajouter un parametre pour l'intent
+    }
+]);
+
+bot.dialog('getPlaylist', [
+    function(session,args, next){
+        builder.Prompts.choice(session, "Choisissez votre playlist", playlists, { listStyle: builder.ListStyle.button});
+    },
+    function (session, results){
+        var choice = playlists[results.response.entity];
+        session.send('%s', playlists.url);
+        session.send('%s', playlists.owner);    
     }
 ]);
