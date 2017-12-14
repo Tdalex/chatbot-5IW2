@@ -60,9 +60,8 @@ bot.recognizer(luisRecognizer);
 bot.dialog("songify", [
     function(session, args, next){       
         
-        intentResult = args.intent; 
-
-        //ajouter verif pour separer l'intent et utiliser le meme callback
+        intentResult = args.intent;
+        
         function callback(error, response, body) {
             if (!error && response.statusCode == 200) {                
                 session.send('Bonjour, '+ body.display_name +', vous êtes maintenant connecté, vous pouvez continuer.');
@@ -95,7 +94,7 @@ bot.dialog("songify", [
             options.url                   = spotifyEndpoint + "me" ;
             
             session.send('Vérification du token ...');
-            request(options, callback); //Ajouter un parametre pour l'intent
+            request(options, callback);
             promptType = "";
             return true;
         }
