@@ -65,7 +65,7 @@ bot.dialog("songify", [
                 session.send('Bonjour, '+ body.display_name +', vous êtes maintenant connecté, vous pouvez continuer.');
                 connected = true;
             }else if( response.statusCode == 401) {
-                session.send('votre token a expiré')
+                session.send('votre token a expiré ou est invalide')
             }else{
                 if(debug){
                     session.send(JSON.stringify(response));
