@@ -5,6 +5,7 @@ var Spotify           = require('node-spotify-api');
 var request           = require('request');
 var debug             = false;
 var promptType        = "";
+var intentResult      = "";
 
 // Setup Restify Server
 var server = restify.createServer();
@@ -59,6 +60,8 @@ bot.recognizer(luisRecognizer);
 bot.dialog("songify", [
     function(session, args, next){       
         
+        intentResult = args.intent;
+        
         //ajouter verif pour separer l'intent et utiliser le meme callback
         function callback(error, response, body) {
             if (!error && response.statusCode == 200) {                
@@ -66,6 +69,7 @@ bot.dialog("songify", [
                 connected = true;
             }else if( response.statusCode == 401) {
                 session.send('votre token a expiré ou est invalide')
+                connected = false;
             }else{
                 if(debug){
                     session.send(JSON.stringify(response));
@@ -78,8 +82,6 @@ bot.dialog("songify", [
             session.beginDialog('debug');    
             return true;          
         }
-        
-        var intentResult = args.intent;
         
         if(debug){
             session.send(JSON.stringify(intentResult));
@@ -97,8 +99,13 @@ bot.dialog("songify", [
             return true;
         }
 
+        if (intentResult.intent == "disconnect"){
+            connected                     = false;
+            options.headers.Authorization = "";
+            token                         = "";
+            session.send("Vous venez de vous déconnecter");
         // search action
-        if (intentResult.intent == "search"){
+        }else if (intentResult.intent == "search"){
             var queryBuilder = [];
             var type         = [];
             var query        = [];
@@ -179,7 +186,7 @@ bot.dialog("songify", [
         }
     }
 ]).triggerAction({
-    matches: ["search", 'user', "None", "debug"]
+    matches: ["search", 'user', "None", "debug", "disconnect"]
 });
 
 bot.dialog('askMusic', [
