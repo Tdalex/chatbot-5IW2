@@ -5,7 +5,7 @@ var Spotify           = require('node-spotify-api');
 var request           = require('request');
 var debug             = false;
 var promptType        = "";
-var intentResult      = ""; 
+var intentResult      = "";
 
 // Setup Restify Server
 var server = restify.createServer();
@@ -19,7 +19,7 @@ var connector = new builder.ChatConnector({
     appPassword: process.env.MICROSOFT_APP_PASSWORD
 });
 
-// Listen for messages from users 
+// Listen for messages from users
 server.post('/api/messages', connector.listen());
 
 // Receive messages from the user and respond by echoing each message back (prefixed with 'You said:')
@@ -60,10 +60,10 @@ var options = {
 bot.recognizer(luisRecognizer);
 
 bot.dialog("songify", [
-    function(session, args, next){       
-        
+    function(session, args, next){
+
         intentResult = args.intent;
-        
+
         function callback(error, response, body) {
             if (!error && response.statusCode == 200) {  
                 if (intentResult == "user"){              
@@ -87,21 +87,21 @@ bot.dialog("songify", [
         }      
         
         if(session.message.text.toLowerCase() == 'debug'){
-            session.beginDialog('debug');    
-            return true;          
+            session.beginDialog('debug');
+            return true;
         }
-        
-        
+
+
         if(debug){
             session.send(JSON.stringify(intentResult));
-        }  
+        }
 
         //promptType == 'connect' quand l'intent est user
-        if(promptType == 'connect'){            
+        if(promptType == 'connect'){
             token                         = session.message.text;
             options.headers.Authorization = "Bearer " + token;
             options.url                   = spotifyEndpoint + "me" ;
-            
+
             session.send('Vérification du token ...');
             request(options, callback);
             promptType = "";
@@ -114,6 +114,7 @@ bot.dialog("songify", [
             var type         = [];
             var query        = [];
             var name         = [];
+
             // entities
             intentResult.entities.forEach(function(element){
                 if(element.type != "type"){
@@ -132,7 +133,7 @@ bot.dialog("songify", [
                 }else{
                     type.push(element.entity);
                 }
-            }, this);  
+            }, this);
             // join title and artist name to query
             if (name.length != 0) {
                 query.push(name.join(','));
@@ -140,47 +141,47 @@ bot.dialog("songify", [
             // assemble query
             for(var q in queryBuilder){
                 query.push(q + ':' + queryBuilder[q].join(','));
-            } 
-            // if not specific search use default type  
+            }
+            // if not specific search use default type
             if (type.length == 0) {
                 type = defaultType;
             }
-            
+
             // send error or search if query not null
             if (query.length == 0) {
                 session.send("Une erreur est survenue, veuillez recommencer.");
             }else{
                 var search = spotifyEndpoint + 'search?limit=5&offset=0&q=' + encodeURIComponent(query.join('&')) + '&type=' + type.join(',');
-               
-                if(debug){    
+
+                if(debug){
                     session.send(search);
                 }
                 spotify.request(search)
                     .then(function(data) {
                         for(var element in data){
                             choices = {};
-                            
+
                             for(var elmt in data[element]['items']){
                                 choices[data[element]['items'][elmt]['name']] = { "url": data[element]['items'][elmt]['external_urls']['spotify'] };
                             }
 
-                            session.beginDialog('askMusic');         
+                            session.beginDialog('askMusic');
                         }
                     })
                     .catch(function(err) {
                         session.send('Error occurred: ' + err);
-                        console.error('Error occurred: ' + err); 
+                        console.error('Error occurred: ' + err);
                     });
             }
 
         // user actions
         }else if (intentResult.intent == "user"){
             if (!connected){
-                // session.beginDialog('connect'); 
+                // session.beginDialog('connect');
                 promptType = "connect";
                 session.send("Veuillez vous rendre sur l'addresse suivante afin de nous communiqué votre token d'authentification: " + authUrl);
-                return true;   
-            }            
+                return true;
+            }
 
         // no intent found
         }else if(intentResult.intent == "getPlaylist"){
@@ -188,7 +189,7 @@ bot.dialog("songify", [
             request(options, callback);
             session.beginDialog('getPlaylist');
 
-        }else{  
+        }else{
             session.send("Une erreur est survenue, veuillez recommencer.");
         }
     }
@@ -207,12 +208,12 @@ bot.dialog('askMusic', [
 ]);
 
 bot.dialog('debug', [
-    function(session, args, next){        
+    function(session, args, next){
         builder.Prompts.choice(session, "activer le mode debug?", yesno, { listStyle: builder.ListStyle.button});
     },
     function (session, results){
         debug = yesno[results.response.entity];
-        
+
         if(debug){
             session.send("debug activé");
         }else{
@@ -222,7 +223,7 @@ bot.dialog('debug', [
 ]);
 
 bot.dialog('connect', [
-    function(session, args, next){   
+    function(session, args, next){
         builder.Prompts.text(session, "Veuillez vous rendre sur l'addresse suivante afin de nous communiqué votre token d'authentification: " + authUrl);
     },
     function (session, results){
@@ -230,7 +231,7 @@ bot.dialog('connect', [
         options.headers.Authorization = "Bearer " + token;
         connected                     = true;
         options.url                   = spotifyEndpoint + "me" ;
-        
+
         request(options, callback); //Ajouter un parametre pour l'intent
     }
 ]);
