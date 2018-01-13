@@ -42,6 +42,9 @@ var   authUrl                 = "http://localhost/spotify_login2/";
 var   connected               = false;
 var   callbackIntent          = "";
 var   user                    = {};
+var   lastMusic               = {};
+var   requestBody             = {};
+
 var   spotify                 = new Spotify({
     id    : spotifyApplicationId,
     secret: spotifyApplicationToken
@@ -71,7 +74,7 @@ bot.dialog("songify", [
                     session.send('Bonjour, '+ body.display_name +', vous êtes maintenant connecté, vous pouvez continuer.');
                     user = body;
                     connected = true;
-                }else if (callbackIntent == "getPlaylist"){
+                }else if (callbackIntent == "getPlaylist" || callbackIntent == "addToPlaylist" || callbackIntent == "removeFromPlaylist"){
                     playlists = {};
                     if(debug){
                         session.send(JSON.stringify(body['items']));
@@ -79,6 +82,8 @@ bot.dialog("songify", [
                     for(var elmt in body['items']){
                         if(body['items'][elmt]['owner']['display_name'] == user.display_name){
                             playlists[body['items'][elmt]['name']] = {
+                                "name":  body['items'][elmt]['name'],
+                                "id":    body['items'][elmt]['id'],
                                 "url":   body['items'][elmt]['external_urls']['spotify'],
                                 "owner": body['items'][elmt]['owner']['display_name']
                             };
@@ -117,9 +122,9 @@ bot.dialog("songify", [
             request(options, callback);
             promptType = "";
             return true;
-        }
 
-        if(session.message.text.toLowerCase() == 'disconnect'){
+        // disconnect
+        } else if (intentResult.intent == "disconnect"){
             token                         = '';
             options.headers.Authorization = "Bearer " + token;
             options.url                   = spotifyEndpoint + "me" ;
@@ -127,10 +132,43 @@ bot.dialog("songify", [
 
             session.send('Vous êtes maintenant déconnecté');
             return true;
-        }
+
+        // create playlist
+        } else if (intentResult.intent == "addPlaylist"){
+            if (!connected){
+                // session.beginDialog('connect');
+                promptType = "connect";
+                session.send("Veuillez vous rendre sur l'addresse suivante afin de nous communiqué votre token d'authentification: " + authUrl);
+                return true;
+            }
+            session.replaceDialog('addPlaylist');
+
+        //  music from playlist
+        } else if (intentResult.intent == "addToPlaylist"){
+            if (!connected){
+                // session.beginDialog('connect');
+                promptType = "connect";
+                session.send("Veuillez vous rendre sur l'addresse suivante afin de nous communiqué votre token d'authentification: " + authUrl);
+                return true;
+            }
+            options.url = spotifyEndpoint + "me/playlists" ;
+            callbackIntent = 'addToPlaylist';
+            request(options, callback);
+
+        // remove music from playlist
+        } else if (intentResult.intent == "removeFromPlaylist"){
+            if (!connected){
+                // session.beginDialog('connect');
+                promptType = "connect";
+                session.send("Veuillez vous rendre sur l'addresse suivante afin de nous communiqué votre token d'authentification: " + authUrl);
+                return true;
+            }
+            options.url = spotifyEndpoint + "me/playlists" ;
+            callbackIntent = 'removeFromPlaylist';
+            request(options, callback);
 
         // search action
-        if (intentResult.intent == "search"){
+        } else if (intentResult.intent == "search"){
             var queryBuilder = [];
             var type         = [];
             var query        = [];
@@ -183,11 +221,19 @@ bot.dialog("songify", [
                             choices = {};
 
                             for(var elmt in data[element]['items']){
-                                choices[data[element]['items'][elmt]['name']] = { "url": data[element]['items'][elmt]['external_urls']['spotify'] };
+                                choices[data[element]['items'][elmt]['name']] = {
+                                    "name": data[element]['items'][elmt]['name'],
+                                    "url":  data[element]['items'][elmt]['external_urls']['spotify'],
+                                    "uri":  data[element]['items'][elmt]['uri']
+                                };
                             }
 
+                            if (debug){
+                                session.send(JSON.stringify(choices));
+                            }
                             session.beginDialog('askMusic');
                         }
+
                     })
                     .catch(function(err) {
                         session.send('Error occurred: ' + err);
@@ -206,6 +252,12 @@ bot.dialog("songify", [
 
         // user playlist
         }else if(intentResult.intent == "getPlaylist"){
+            if (!connected){
+                // session.beginDialog('connect');
+                promptType = "connect";
+                session.send("Veuillez vous rendre sur l'addresse suivante afin de nous communiqué votre token d'authentification: " + authUrl);
+                return true;
+            }
             options.url = spotifyEndpoint + "me/playlists" ;
             callbackIntent = 'getPlaylist';
             request(options, callback);
@@ -215,7 +267,7 @@ bot.dialog("songify", [
         }
     }
 ]).triggerAction({
-    matches: ["search", 'user', "None", "debug", "disconnect", "getPlaylist"]
+    matches: ["search", 'user', "None", "debug", "disconnect", "getPlaylist", "addToPlaylist", "removeFromPlaylist", "addPlaylist"]
 });
 
 bot.dialog('askMusic', [
@@ -225,6 +277,7 @@ bot.dialog('askMusic', [
     function (session, results){
         var choice = choices[results.response.entity];
         session.send('%s', choice.url);
+        lastMusic = choice;
     }
 ]);
 
@@ -253,7 +306,39 @@ bot.dialog('connect', [
         connected                     = true;
         options.url                   = spotifyEndpoint + "me" ;
         callbackIntent = 'connect';
-        request(options, callback); //Ajouter un parametre pour l'intent
+        request(options, callback);
+    }
+]);
+
+
+bot.dialog('addPlaylist', [
+    function(session, args, next){
+        builder.Prompts.text(session, "Veuillez choisir un nom pour votre playlist");
+    },
+    function (session, results){
+        function callback(error, response, body) {
+            if (response.statusCode == "201" || response.statusCode == "200" ) {
+                session.send("Votre playlist a été créé");
+            }else if(response.statusCode == "401") {
+                session.send('votre token a expiré ou est invalide');
+            }else{
+                if(debug){
+                    session.send(JSON.stringify(response));
+                }
+            }
+
+            options.method = "GET";
+            options.body  = {};
+        }
+
+        options.url  = spotifyEndpoint + "users/"+ user.id +"/playlists" ;
+        options.body = {
+            "description": "",
+            "public": false,
+            "name":  results.response
+        }
+        options.method = "POST";
+        request(options, callback);
     }
 ]);
 
@@ -262,7 +347,39 @@ bot.dialog('getPlaylist', [
         builder.Prompts.choice(session, "Choisissez votre playlist", playlists, { listStyle: builder.ListStyle.button});
     },
     function (session, results){
+        function callback(error, response, body) {
+            if (response.statusCode == "201" || response.statusCode == "200" ) {
+                if(callbackIntent == 'addToPlaylist'){
+                    session.send('`'+ lastMusic.name +'` a été ajouté à la playlist: '+ choice.name);
+                }else if(callbackIntent == 'removeFromPlaylist'){
+                    session.send('`'+ lastMusic.name +'` a été enlevé de la playlist: '+ choice.name);
+                }
+                session.send(choice.url);
+            }else if(response.statusCode == "401") {
+                session.send('votre token a expiré ou est invalide');
+            }else{
+                if(debug){
+                    session.send(JSON.stringify(response));
+                }
+            }
+
+            options.method = "GET";
+            options.body  = {};
+        }
+
         var choice = playlists[results.response.entity];
-        session.send(choice.url);
+        if (callbackIntent == "getPlaylist"){
+            session.send(choice.url);
+        }else if(callbackIntent == "addToPlaylist"){
+            options.url = spotifyEndpoint + "users/"+ user.id +"/playlists/"+ choice.id +"/tracks?position=0&uris="+lastMusic.uri;
+            options.method = "POST";
+            request(options, callback);
+        }else if(callbackIntent == "removeFromPlaylist"){
+            // options.  = [ { 'content-type': 'application/json',  'body': { "tracks": [ { "uri": lastMusic.uri } ] }}  ];
+            options.body =  { "tracks": [ { "uri": lastMusic.uri } ] };
+            options.url = spotifyEndpoint + "users/"+ user.id +"/playlists/"+ choice.id +"/tracks";
+            options.method = "DELETE";
+            request(options, callback);
+        }
     }
 ]);
