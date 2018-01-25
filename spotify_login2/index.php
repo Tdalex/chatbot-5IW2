@@ -19,6 +19,9 @@ if (isset($_GET['code'])) {
     $options = [
         'scope' => [
             'user-read-email',
+            "playlist-modify-public",
+            "playlist-modify-private",
+            "playlist-read-private"
         ],
     ];
 
