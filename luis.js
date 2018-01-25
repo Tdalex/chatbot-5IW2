@@ -38,7 +38,7 @@ var   playlists               = {};
 var   yesno                   = {};
 yesno['oui']                  = true;
 yesno['non']                  = false;
-var   authUrl                 = "http://localhost:8888/spotify_login2/";
+var   authUrl                 = "http://localhost/spotify_login2/";
 var   connected               = false;
 var   callbackIntent          = "";
 var   user                    = {};
@@ -66,7 +66,11 @@ bot.recognizer(luisRecognizer);
 bot.dialog("songify", [
     function(session, args, next){
 
-        intentResult = args.intent;
+        if(args){
+            intentResult = args.intent;
+        }else{
+            intentResult = [];
+        }
 
         function callback(error, response, body) {
             if (response.statusCode == "200") {
@@ -124,144 +128,149 @@ bot.dialog("songify", [
             return true;
 
         // disconnect
-        } else if (intentResult.intent == "disconnect"){
-            token                         = '';
-            options.headers.Authorization = "Bearer " + token;
-            options.url                   = spotifyEndpoint + "me" ;
-            connected = false;
+        }
+        if( 'intent' in intentResult ){
+            if (intentResult.intent == "disconnect"){
+                token                         = '';
+                options.headers.Authorization = "Bearer " + token;
+                options.url                   = spotifyEndpoint + "me" ;
+                connected = false;
 
-            session.send('Vous êtes maintenant déconnecté');
-            return true;
-
-        // create playlist
-        } else if (intentResult.intent == "addPlaylist"){
-            if (!connected){
-                // session.beginDialog('connect');
-                promptType = "connect";
-                session.send("Veuillez vous rendre sur l'addresse suivante afin de nous communiqué votre token d'authentification: " + authUrl);
+                session.send('Vous êtes maintenant déconnecté');
                 return true;
-            }
-            session.replaceDialog('addPlaylist');
 
-        //  music from playlist
-        } else if (intentResult.intent == "addToPlaylist"){
-            if (!connected){
-                // session.beginDialog('connect');
-                promptType = "connect";
-                session.send("Veuillez vous rendre sur l'addresse suivante afin de nous communiqué votre token d'authentification: " + authUrl);
-                return true;
-            }
-            options.url = spotifyEndpoint + "me/playlists" ;
-            callbackIntent = 'addToPlaylist';
-            request(options, callback);
+            // create playlist
+            } else if (intentResult.intent == "addPlaylist"){
+                if (!connected){
+                    // session.beginDialog('connect');
+                    promptType = "connect";
+                    session.send("Veuillez vous rendre sur l'addresse suivante afin de nous communiqué votre token d'authentification: " + authUrl);
+                    return true;
+                }
+                session.replaceDialog('addPlaylist');
 
-        // remove music from playlist
-        } else if (intentResult.intent == "removeFromPlaylist"){
-            if (!connected){
-                // session.beginDialog('connect');
-                promptType = "connect";
-                session.send("Veuillez vous rendre sur l'addresse suivante afin de nous communiqué votre token d'authentification: " + authUrl);
-                return true;
-            }
-            options.url = spotifyEndpoint + "me/playlists" ;
-            callbackIntent = 'removeFromPlaylist';
-            request(options, callback);
+            //  music from playlist
+            } else if (intentResult.intent == "addToPlaylist"){
+                if (!connected){
+                    // session.beginDialog('connect');
+                    promptType = "connect";
+                    session.send("Veuillez vous rendre sur l'addresse suivante afin de nous communiqué votre token d'authentification: " + authUrl);
+                    return true;
+                }
+                options.url = spotifyEndpoint + "me/playlists" ;
+                callbackIntent = 'addToPlaylist';
+                request(options, callback);
 
-        // search action
-        } else if (intentResult.intent == "search"){
-            var queryBuilder = [];
-            var type         = [];
-            var query        = [];
-            var name         = [];
+            // remove music from playlist
+            } else if (intentResult.intent == "removeFromPlaylist"){
+                if (!connected){
+                    // session.beginDialog('connect');
+                    promptType = "connect";
+                    session.send("Veuillez vous rendre sur l'addresse suivante afin de nous communiqué votre token d'authentification: " + authUrl);
+                    return true;
+                }
+                options.url = spotifyEndpoint + "me/playlists" ;
+                callbackIntent = 'removeFromPlaylist';
+                request(options, callback);
 
-            // entities
-            intentResult.entities.forEach(function(element){
-                if(element.type != "type"){
-                    if(element.type == "builtin.encyclopedia.music.artist"){
-                        type.push("artist");
-                        name.push(element.entity);
-                    }else if(element.type == "builtin.encyclopedia.film.film"){
-                        type.push("track");
-                        name.push(element.entity);
-                    }else if(!element.type.startsWith('Music.') && !element.type.startsWith("builtin.encyclopedia.")){
-                        if(!queryBuilder[element.type]){
-                            queryBuilder[element.type] = [];
+            // search action
+            } else if (intentResult.intent == "search"){
+                var queryBuilder = [];
+                var type         = [];
+                var query        = [];
+                var name         = [];
+
+                // entities
+                intentResult.entities.forEach(function(element){
+                    if(element.type != "type"){
+                        if(element.type == "builtin.encyclopedia.music.artist"){
+                            type.push("artist");
+                            name.push(element.entity);
+                        }else if(element.type == "builtin.encyclopedia.film.film"){
+                            type.push("track");
+                            name.push(element.entity);
+                        }else if(!element.type.startsWith('Music.') && !element.type.startsWith("builtin.encyclopedia.")){
+                            if(!queryBuilder[element.type]){
+                                queryBuilder[element.type] = [];
+                            }
+                            queryBuilder[element.type].push(element.entity);
                         }
-                        queryBuilder[element.type].push(element.entity);
+                    }else{
+                        type.push(element.entity);
                     }
+                }, this);
+                // join title and artist name to query
+                if (name.length != 0) {
+                    query.push(name.join(','));
+                }
+                // assemble query
+                for(var q in queryBuilder){
+                    query.push(q + ':' + queryBuilder[q].join(','));
+                }
+                // if not specific search use default type
+                if (type.length == 0) {
+                    type = defaultType;
+                }
+
+                // send error or search if query not null
+                if (query.length == 0) {
+                    session.send("Une erreur est survenue, veuillez recommencer.");
                 }else{
-                    type.push(element.entity);
-                }
-            }, this);
-            // join title and artist name to query
-            if (name.length != 0) {
-                query.push(name.join(','));
-            }
-            // assemble query
-            for(var q in queryBuilder){
-                query.push(q + ':' + queryBuilder[q].join(','));
-            }
-            // if not specific search use default type
-            if (type.length == 0) {
-                type = defaultType;
-            }
+                    var search = spotifyEndpoint + 'search?limit=5&offset=0&q=' + encodeURIComponent(query.join('&')) + '&type=' + type.join(',');
 
-            // send error or search if query not null
-            if (query.length == 0) {
-                session.send("Une erreur est survenue, veuillez recommencer.");
+                    if(debug){
+                        session.send(search);
+                    }
+                    spotify.request(search)
+                        .then(function(data) {
+                            for(var element in data){
+                                choices = {};
+
+                                for(var elmt in data[element]['items']){
+                                    choices[data[element]['items'][elmt]['name']] = {
+                                        "name": data[element]['items'][elmt]['name'],
+                                        "url":  data[element]['items'][elmt]['external_urls']['spotify'],
+                                        "uri":  data[element]['items'][elmt]['uri']
+                                    };
+                                }
+
+                                if (debug){
+                                    session.send(JSON.stringify(choices));
+                                }
+                                session.beginDialog('askMusic');
+                            }
+
+                        })
+                        .catch(function(err) {
+                            session.send('Error occurred: ' + err);
+                            console.error('Error occurred: ' + err);
+                        });
+                }
+
+            // user actions
+            }else if (intentResult.intent == "user"){
+                if (!connected){
+                    // session.beginDialog('connect');
+                    promptType = "connect";
+                    session.send("Veuillez vous rendre sur l'addresse suivante afin de nous communiqué votre token d'authentification: " + authUrl);
+                    return true;
+                }
+
+            // user playlist
+            }else if(intentResult.intent == "getPlaylist"){
+                if (!connected){
+                    // session.beginDialog('connect');
+                    promptType = "connect";
+                    session.send("Veuillez vous rendre sur l'addresse suivante afin de nous communiqué votre token d'authentification: " + authUrl);
+                    return true;
+                }
+                options.url = spotifyEndpoint + "me/playlists" ;
+                callbackIntent = 'getPlaylist';
+                request(options, callback);
+            // no intent found
             }else{
-                var search = spotifyEndpoint + 'search?limit=5&offset=0&q=' + encodeURIComponent(query.join('&')) + '&type=' + type.join(',');
-
-                if(debug){
-                    session.send(search);
-                }
-                spotify.request(search)
-                    .then(function(data) {
-                        for(var element in data){
-                            choices = {};
-
-                            for(var elmt in data[element]['items']){
-                                choices[data[element]['items'][elmt]['name']] = {
-                                    "name": data[element]['items'][elmt]['name'],
-                                    "url":  data[element]['items'][elmt]['external_urls']['spotify'],
-                                    "uri":  data[element]['items'][elmt]['uri']
-                                };
-                            }
-
-                            if (debug){
-                                session.send(JSON.stringify(choices));
-                            }
-                            session.beginDialog('askMusic');
-                        }
-
-                    })
-                    .catch(function(err) {
-                        session.send('Error occurred: ' + err);
-                        console.error('Error occurred: ' + err);
-                    });
+                session.send("Une erreur est survenue, veuillez recommencer.");
             }
-
-        // user actions
-        }else if (intentResult.intent == "user"){
-            if (!connected){
-                // session.beginDialog('connect');
-                promptType = "connect";
-                session.send("Veuillez vous rendre sur l'addresse suivante afin de nous communiqué votre token d'authentification: " + authUrl);
-                return true;
-            }
-
-        // user playlist
-        }else if(intentResult.intent == "getPlaylist"){
-            if (!connected){
-                // session.beginDialog('connect');
-                promptType = "connect";
-                session.send("Veuillez vous rendre sur l'addresse suivante afin de nous communiqué votre token d'authentification: " + authUrl);
-                return true;
-            }
-            options.url = spotifyEndpoint + "me/playlists" ;
-            callbackIntent = 'getPlaylist';
-            request(options, callback);
-        // no intent found
         }else{
             session.send("Une erreur est survenue, veuillez recommencer.");
         }
