@@ -1,1 +1,7 @@
-chatbot-5IW2
+- recherche par genre
+- selection de la musique
+- connexion
+- ajout de la musique dans une playlist
+- selection de la playlist
+- suppression de la musique dans une playlist
+- deconnexion
