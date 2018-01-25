@@ -1,5 +1,6 @@
 var restify           = require('restify');
 var builder           = require('botbuilder');
+var cognitiveServices = require('botbuilder-cognitiveServices');
 var Spotify           = require('node-spotify-api');
 var request           = require('request');
 var debug             = false;

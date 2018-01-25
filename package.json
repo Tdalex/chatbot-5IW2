@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "botbuilder": "^3.14.0",
+    "botbuilder-cognitiveservices": "^1.1.0",
     "node-spotify-api": "^1.0.7",
     "nodemon": "^1.14.11",
     "request": "^2.83.0",
